@@ -1,0 +1,39 @@
+name: "Sync"
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+jobs:
+  main:
+    name: Sync
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up github-actions name and email
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+    - name: Checkout release branch
+      run: |
+        if git ls-remote --exit-code origin refs/heads/master; then
+          # release branch exists; fetch and switch to it
+          git fetch --depth=1 origin master:master
+          git switch master
+        else
+          # release branch does not exist; create orphan branch
+          git checkout --orphan master
+          git rm -rf .
+        fi
+    - name: Sync with source
+      run: |
+        rsync -av rsync://contextgarden.net/minimals/current/modules/* .
+    - name: Commit and push if changes present
+      run: |
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "No changes present."
+        else
+          echo "Changes present."
+          git add .
+          git commit --allow-empty-message -m ""
+          git push origin master
+        fi
